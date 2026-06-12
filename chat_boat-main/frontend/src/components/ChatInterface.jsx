@@ -27,7 +27,10 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
     const q = query(messagesRef, orderBy('timestamp', 'asc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => doc.data());
+      const msgs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data({ serverTimestamps: 'estimate' })
+      }));
       setMessages(msgs);
     }, (error) => {
       console.error("Firestore error in ChatInterface:", error);
