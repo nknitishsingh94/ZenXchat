@@ -42,7 +42,7 @@ export default function Login() {
       navigate('/chat');
     } catch (err) {
       console.error(err);
-      setError('Google Login failed! Make sure you enabled Google Auth in Firebase Console -> Authentication.');
+      setError(`Google Login failed: ${err.message}. Ensure Google Auth is enabled in Firebase Console.`);
     }
     setLoading(false);
   };
