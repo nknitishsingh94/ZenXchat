@@ -134,6 +134,9 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
       const systemPrompt = `You are Nitish AI, an extremely intelligent and friendly AI assistant. You are an expert software engineer. 1. Provide clean, well-documented code in Markdown format. 2. If the user shares an image, analyze it perfectly and help them. 3. Be conversational and human-like. Use Hindi/English mix if asked.`;
       
       const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!API_KEY) {
+          throw new Error('API Key is missing! Check your .env file and restart the server.');
+      }
       const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
       
       const parts = [];
@@ -169,7 +172,7 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
       if (!response.ok) {
           const errText = await response.text();
           console.error("Gemini API Error:", errText);
-          throw new Error('Network response was not ok');
+          throw new Error(`API Error: ${response.status} - ${errText}`);
       }
 
       const data = await response.json();
@@ -189,7 +192,7 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
       console.error('Error in chat:', error);
       if (sessionId) {
         const messagesCollection = collection(db, 'users', currentUser.uid, 'sessions', sessionId, 'messages');
-        const errMessage = error.name === 'AbortError' ? 'Generation stopped.' : 'Sorry, something went wrong. Please try again later.';
+        const errMessage = error.name === 'AbortError' ? 'Generation stopped.' : `Error: ${error.message}`;
         await addDoc(messagesCollection, {
           role: 'bot',
           content: errMessage,
