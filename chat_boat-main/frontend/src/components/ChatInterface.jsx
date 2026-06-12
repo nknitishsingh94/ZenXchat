@@ -29,6 +29,8 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map(doc => doc.data());
       setMessages(msgs);
+    }, (error) => {
+      console.error("Firestore error in ChatInterface:", error);
     });
 
     return () => unsubscribe();
@@ -101,22 +103,68 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
         timestamp: serverTimestamp()
       });
 
-      const response = await fetch('http://localhost:5000/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: userMessage,
-          image: imageToSend
-        }),
+      // --- Image Generation Logic ---
+      const generateKeywords = ["generate image", "create image", "draw", "make an image", "image of", "picture of", "photo of"];
+      const isImageGen = userMessage && generateKeywords.some(keyword => userMessage.toLowerCase().includes(keyword));
+      
+      let generatedImageUrl = null;
+      if (isImageGen) {
+          const safePrompt = encodeURIComponent(userMessage.trim());
+          const seed = Math.floor(Math.random() * 100000);
+          generatedImageUrl = `https://image.pollinations.ai/prompt/${safePrompt}?width=800&height=600&nologo=true&seed=${seed}`;
+      }
+
+      // --- Gemini Chat Logic ---
+      const systemPrompt = `You are Nitish AI, an extremely intelligent and friendly AI assistant. You are an expert software engineer. 1. Provide clean, well-documented code in Markdown format. 2. If the user shares an image, analyze it perfectly and help them. 3. Be conversational and human-like. Use Hindi/English mix if asked.`;
+      
+      const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+      const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+      
+      const parts = [];
+      if (userMessage) {
+          parts.push({ text: userMessage });
+      } else {
+          parts.push({ text: "Please analyze this image." });
+      }
+      
+      if (imageToSend) {
+          const mimeType = imageToSend.split(';')[0].split(':')[1];
+          const base64Data = imageToSend.split(',')[1];
+          parts.push({
+              inlineData: {
+                  mimeType: mimeType,
+                  data: base64Data
+              }
+          });
+      }
+
+      const payload = {
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: "user", parts: parts }]
+      };
+
+      const response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
       });
 
-      if (!response.ok) throw new Error('Network response was not ok');
+      if (!response.ok) {
+          const errText = await response.text();
+          console.error("Gemini API Error:", errText);
+          throw new Error('Network response was not ok');
+      }
 
       const data = await response.json();
+      let apiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't generate a response.";
       
+      if (generatedImageUrl) {
+          apiResponse += `\n\n![Generated Image](${generatedImageUrl})\n\n*Here is your requested image!*`;
+      }
+
       await addDoc(messagesCollection, {
         role: 'bot',
-        content: data.reply,
+        content: apiResponse,
         timestamp: serverTimestamp()
       });
 
