@@ -187,8 +187,8 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
 
     } catch (error) {
       console.error('Error in chat:', error);
-      if (activeSessionId) {
-        const messagesCollection = collection(db, 'users', currentUser.uid, 'sessions', activeSessionId, 'messages');
+      if (sessionId) {
+        const messagesCollection = collection(db, 'users', currentUser.uid, 'sessions', sessionId, 'messages');
         const errMessage = error.name === 'AbortError' ? 'Generation stopped.' : 'Sorry, something went wrong. Please try again later.';
         await addDoc(messagesCollection, {
           role: 'bot',
