@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, ArrowLeft, ImagePlus, X, Menu } from 'lucide-react';
+import { Send, ArrowLeft, ImagePlus, X, Menu, Square } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -15,6 +15,7 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
   
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const abortControllerRef = useRef(null);
   const { currentUser } = useAuth();
 
   useEffect(() => {
@@ -63,8 +64,18 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e?.preventDefault();
+    if (isLoading) {
+      handleStopGeneration();
+      return;
+    }
     if (!inputValue.trim() && !selectedImage) return;
 
     if (!currentUser) {
@@ -79,6 +90,8 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
     setSelectedImage(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     setIsLoading(true);
+    
+    abortControllerRef.current = new AbortController();
 
     try {
       let sessionId = activeSessionId;
@@ -149,7 +162,8 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
       const response = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          signal: abortControllerRef.current.signal
       });
 
       if (!response.ok) {
@@ -175,9 +189,10 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
       console.error('Error in chat:', error);
       if (activeSessionId) {
         const messagesCollection = collection(db, 'users', currentUser.uid, 'sessions', activeSessionId, 'messages');
+        const errMessage = error.name === 'AbortError' ? 'Generation stopped.' : 'Sorry, something went wrong. Please try again later.';
         await addDoc(messagesCollection, {
           role: 'bot',
-          content: 'Sorry, something went wrong. Please try again later.',
+          content: errMessage,
           timestamp: serverTimestamp()
         });
       }
@@ -258,9 +273,15 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
                 placeholder="Message Nitish AI..."
                 disabled={isLoading}
               />
-              <button type="submit" className="send-button" disabled={(!inputValue.trim() && !selectedImage) || isLoading}>
-                <Send size={18} />
-              </button>
+              {isLoading ? (
+                <button type="button" onClick={handleStopGeneration} className="send-button" style={{ background: '#ef4444' }}>
+                  <Square size={18} fill="currentColor" />
+                </button>
+              ) : (
+                <button type="submit" className="send-button" disabled={!inputValue.trim() && !selectedImage}>
+                  <Send size={18} />
+                </button>
+              )}
             </div>
           </form>
         </div>

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { MessageSquare, Plus, LogOut } from 'lucide-react';
+import { MessageSquare, Plus, LogOut, Trash2 } from 'lucide-react';
 
 export default function Sidebar({ activeSessionId, setActiveSessionId }) {
   const [sessions, setSessions] = useState([]);
@@ -37,6 +37,21 @@ export default function Sidebar({ activeSessionId, setActiveSessionId }) {
       setActiveSessionId(docRef.id);
     } catch (error) {
       console.error("Error creating new chat:", error);
+    }
+  };
+
+  const handleDeleteSession = async (e, sessionId) => {
+    e.stopPropagation();
+    if (!currentUser) return;
+    if (window.confirm("Are you sure you want to delete this chat?")) {
+      try {
+        await deleteDoc(doc(db, 'users', currentUser.uid, 'sessions', sessionId));
+        if (activeSessionId === sessionId) {
+          setActiveSessionId(null);
+        }
+      } catch (error) {
+        console.error("Error deleting chat:", error);
+      }
     }
   };
 
@@ -77,14 +92,21 @@ export default function Sidebar({ activeSessionId, setActiveSessionId }) {
             <div key={groupName} className="session-group">
               <div className="group-title">{groupName}</div>
               {groupSessions.map(session => (
-                <button
+                <div
                   key={session.id}
                   onClick={() => setActiveSessionId(session.id)}
                   className={`session-btn ${activeSessionId === session.id ? 'active' : ''}`}
                 >
                   <MessageSquare size={16} />
-                  <span className="session-title">{session.title || 'New Chat'}</span>
-                </button>
+                  <span className="session-title" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.title || 'New Chat'}</span>
+                  <button 
+                    onClick={(e) => handleDeleteSession(e, session.id)} 
+                    style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', opacity: 0.7, padding: '2px' }}
+                    title="Delete Chat"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               ))}
             </div>
           )
