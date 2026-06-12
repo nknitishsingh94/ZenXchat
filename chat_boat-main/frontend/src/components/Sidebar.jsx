@@ -17,9 +17,11 @@ export default function Sidebar({ activeSessionId, setActiveSessionId }) {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const sessionData = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data({ serverTimestamps: 'estimate' })
       }));
       setSessions(sessionData);
+    }, (error) => {
+      console.error("Firestore error in Sidebar:", error);
     });
 
     return () => unsubscribe();
