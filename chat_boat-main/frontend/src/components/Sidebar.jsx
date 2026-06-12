@@ -11,7 +11,6 @@ export default function Sidebar({ activeSessionId, setActiveSessionId }) {
   useEffect(() => {
     if (!currentUser) return;
 
-    // Listen to the user's chat sessions
     const sessionsRef = collection(db, 'users', currentUser.uid, 'sessions');
     const q = query(sessionsRef, orderBy('createdAt', 'desc'));
 
@@ -21,12 +20,6 @@ export default function Sidebar({ activeSessionId, setActiveSessionId }) {
         ...doc.data()
       }));
       setSessions(sessionData);
-
-      // If there's no active session and we have sessions, maybe set the first one?
-      // Or we let the user start a new one explicitly.
-      if (!activeSessionId && sessionData.length > 0) {
-        // setActiveSessionId(sessionData[0].id); // Optional: auto-load latest
-      }
     });
 
     return () => unsubscribe();
@@ -48,16 +41,7 @@ export default function Sidebar({ activeSessionId, setActiveSessionId }) {
   const groupSessionsByDate = (sessions) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const groups = {
-      'Today': [],
-      'Yesterday': [],
-      'Previous 7 Days': [],
-      'Older': []
-    };
+    const groups = { 'Today': [], 'Yesterday': [], 'Previous 7 Days': [], 'Older': [] };
 
     sessions.forEach(session => {
       if (!session.createdAt) return;
@@ -67,76 +51,56 @@ export default function Sidebar({ activeSessionId, setActiveSessionId }) {
       const diffTime = Math.abs(today - sessionDate);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (diffDays === 0) {
-        groups['Today'].push(session);
-      } else if (diffDays === 1) {
-        groups['Yesterday'].push(session);
-      } else if (diffDays <= 7) {
-        groups['Previous 7 Days'].push(session);
-      } else {
-        groups['Older'].push(session);
-      }
+      if (diffDays === 0) groups['Today'].push(session);
+      else if (diffDays === 1) groups['Yesterday'].push(session);
+      else if (diffDays <= 7) groups['Previous 7 Days'].push(session);
+      else groups['Older'].push(session);
     });
-
     return groups;
   };
 
   const groupedSessions = groupSessionsByDate(sessions);
 
   return (
-    <div className="w-64 bg-gray-900 text-white flex flex-col h-screen border-r border-gray-700 flex-shrink-0">
-      <div className="p-4">
-        <button
-          onClick={handleNewChat}
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors font-medium"
-        >
-          <Plus size={20} />
-          New Chat
+    <div className="sidebar">
+      <div className="sidebar-header">
+        <button onClick={handleNewChat} className="new-chat-btn">
+          <Plus size={18} /> New Chat
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-6 custom-scrollbar">
+      <div className="sidebar-sessions">
         {Object.entries(groupedSessions).map(([groupName, groupSessions]) => (
           groupSessions.length > 0 && (
-            <div key={groupName}>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">
-                {groupName}
-              </h3>
-              <div className="space-y-1">
-                {groupSessions.map(session => (
-                  <button
-                    key={session.id}
-                    onClick={() => setActiveSessionId(session.id)}
-                    className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${
-                      activeSessionId === session.id 
-                        ? 'bg-gray-800 text-white' 
-                        : 'text-gray-300 hover:bg-gray-800/50'
-                    }`}
-                  >
-                    <MessageSquare size={16} className="flex-shrink-0 opacity-70" />
-                    <span className="truncate">{session.title || 'New Chat'}</span>
-                  </button>
-                ))}
-              </div>
+            <div key={groupName} className="session-group">
+              <div className="group-title">{groupName}</div>
+              {groupSessions.map(session => (
+                <button
+                  key={session.id}
+                  onClick={() => setActiveSessionId(session.id)}
+                  className={`session-btn ${activeSessionId === session.id ? 'active' : ''}`}
+                >
+                  <MessageSquare size={16} />
+                  <span className="session-title">{session.title || 'New Chat'}</span>
+                </button>
+              ))}
             </div>
           )
         ))}
       </div>
 
-      <div className="p-4 border-t border-gray-800 mt-auto">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col truncate pr-2">
-            <span className="text-sm font-medium truncate">{currentUser?.displayName || 'User'}</span>
-            <span className="text-xs text-gray-400 truncate">{currentUser?.email}</span>
+      <div className="sidebar-footer">
+        <div style={{ overflow: 'hidden' }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+            {currentUser?.displayName || 'User'}
           </div>
-          <button 
-            onClick={logout}
-            className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-800 transition-colors"
-            title="Logout"
-          >
-            <LogOut size={18} />
-          </button>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+            {currentUser?.email}
+          </div>
         </div>
+        <button onClick={logout} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <LogOut size={18} />
+        </button>
       </div>
     </div>
   );

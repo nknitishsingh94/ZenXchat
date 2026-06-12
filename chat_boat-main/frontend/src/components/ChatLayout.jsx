@@ -13,12 +13,12 @@ export default function ChatLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white overflow-hidden">
+    <div className="app-layout">
       <Sidebar 
         activeSessionId={activeSessionId} 
         setActiveSessionId={setActiveSessionId} 
       />
-      <div className="flex-1 flex flex-col h-full relative">
+      <div className="main-content">
         <ChatInterface 
           activeSessionId={activeSessionId} 
           setActiveSessionId={setActiveSessionId} 
