@@ -197,7 +197,9 @@ const ChatInterface = ({ activeSessionId, setActiveSessionId }) => {
           role: 'bot',
           content: errMessage,
           timestamp: serverTimestamp()
-        });
+        }).catch(e => console.error("Failed to add bot error message:", e));
+      } else {
+        alert("Failed to send message: " + error.message);
       }
     } finally {
       setIsLoading(false);
